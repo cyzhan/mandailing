@@ -1,8 +1,11 @@
 package city.roast.model.entity;
 
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import org.springframework.data.annotation.Id;
+
+import java.math.BigDecimal;
 
 
 @NoArgsConstructor
@@ -22,7 +25,12 @@ public class User {
 //    @Column(value = "email")
     private String email;
 
-    private String balance;
+    private BigDecimal balance;
+
+    @JsonProperty("balance")
+    public String getBalanceAsString(){
+        return this.balance.toString();
+    }
 
     @Override
     public String toString() {
@@ -31,8 +39,7 @@ public class User {
                 ", name='" + name + '\'' +
                 ", password='" + password + '\'' +
                 ", email='" + email + '\'' +
-                ", balance='" + balance + '\'' +
+                ", balance=" + balance +
                 '}';
     }
-
 }

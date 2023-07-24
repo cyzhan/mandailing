@@ -1,5 +1,6 @@
 package city.roast.model.dto;
 
+import city.roast.constant.GenericError;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Getter;
 
@@ -23,7 +24,7 @@ public class ResponseDTO {
         this.data = null;
     }
 
-    public ResponseDTO(int code, String msg, Object data) {
+    private ResponseDTO(int code, String msg, Object data) {
         this.code = code;
         this.msg = msg;
         this.data = data;
@@ -35,6 +36,10 @@ public class ResponseDTO {
 
     public static ResponseDTO error(int code, String msg){
         return new ResponseDTO(code, msg);
+    }
+
+    public static ResponseDTO error(GenericError error){
+        return new ResponseDTO(error.getCode(), error.getMsg());
     }
 
     public static ResponseDTO apiNotFound(){

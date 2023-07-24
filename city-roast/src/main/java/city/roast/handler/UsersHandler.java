@@ -1,31 +1,34 @@
 package city.roast.handler;
 
+import city.roast.constant.RedisKey;
 import city.roast.model.dto.ResponseDTO;
 import city.roast.model.entity.User;
+import city.roast.model.vo.ListWrapper;
 import city.roast.model.vo.PageVO;
 import city.roast.repository.UserRepository;
+import city.roast.util.AuthHelper;
 import city.roast.util.QueryParamHelper;
+import city.roast.util.RedisHelper;
 import city.roast.util.SqlHelper;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.r2dbc.spi.Result;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.r2dbc.core.DatabaseClient;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collector;
-
-import static city.roast.util.SqlHelper.CURRENT_TIMESTAMP;
+import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.TemporalUnit;
+import java.util.*;
 
 @Service
 @Log4j2
@@ -41,7 +44,19 @@ public class UsersHandler {
     private ObjectMapper objectMapper;
 
     @Autowired
+    private AuthHelper authHelper;
+
+    @Autowired
     private TransactionalOperator operator;
+
+    @Autowired
+    private RedisHelper redisHelper;
+
+    private final long tokenTTL;
+
+    public UsersHandler(@Value("${app.token.ttl}") String tokenTTL) {
+        this.tokenTTL = Long.parseLong(tokenTTL);
+    }
 
     public Mono<ServerResponse> findByID(ServerRequest request){
         return Mono.just(request)
@@ -65,51 +80,92 @@ public class UsersHandler {
                 .flatMap(userEntity -> ServerResponse.ok().bodyValue(userEntity));
     }
 
+    public Mono<ServerResponse> login(ServerRequest request){
+        return request.bodyToMono(User.class)
+                .map(user -> {
+                    String token = authHelper.generateToken(user);
+                    return Tuples.of(RedisKey.loginUser(user.getId()), token);
+                })
+                .flatMap(tuple2 -> {
+                        String token = tuple2.getT2();
+                        String signature = token.split("\\.")[2];
+                        return redisHelper.getTemplate().opsForValue()
+                        .set(tuple2.getT1(), signature, Duration.ofSeconds(tokenTTL + 10L))
+                        .zipWith(Mono.just(token), Tuples::of);
+                })
+                .flatMap(tuple2 -> {
+                    if (!tuple2.getT1()){
+                        throw new RuntimeException("redis set loginUser fail");
+                    }
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("token", tuple2.getT2());
+                    return ServerResponse.ok().bodyValue(ResponseDTO.of(map));
+                })
+                .onErrorResume(Exception.class, e -> {
+                    log.error(e);
+                    return ServerResponse.ok().bodyValue(ResponseDTO.error(500, e.getMessage()));
+                });
+    }
+
     public Mono<ServerResponse> list(ServerRequest request){
         List<Long> longIDs = QueryParamHelper.asLongList(request, "ids");
         List<String> names = QueryParamHelper.asStringList(request, "name");
         PageVO pageVO = QueryParamHelper.parsePage(request);
 
         final List<Object> args = new ArrayList<>();
-        StringBuilder builder = new StringBuilder();
-        builder.append("SELECT * FROM city_roast.user u ");
+        StringBuilder whereBuilder = new StringBuilder();
+
         if (longIDs.size() > 0) {
-            builder.append("WHERE u.id IN ")
+            whereBuilder.append("WHERE u.id IN ")
                     .append(SqlHelper.createParentheses(longIDs.size()))
                     .append(" ");
             args.addAll(longIDs);
         } else if (names.size() > 0) {
-            builder.append("WHERE u.name IN ")
-                    .append(SqlHelper.createParentheses(names.size()))
-                    .append(" ");
+            whereBuilder.append("WHERE u.name IN ")
+                    .append(SqlHelper.createParentheses(names.size()));
             args.addAll(names);
         }
-        builder.append("LIMIT ?,?");
+
         args.add(pageVO.getOffset());
         args.add(pageVO.getSize());
-        String sql = builder.toString();
-        log.debug(sql);
+        String mainSQL = "SELECT * FROM city_roast.user u "
+                + whereBuilder
+                + " LIMIT ?,?";
+        String countSQL = "SELECT COUNT(u.id) AS count FROM city_roast.user u "
+                + whereBuilder;
+
+        log.debug(mainSQL);
+        log.debug(countSQL);
         log.debug(args.toString());
 
-        DatabaseClient.GenericExecuteSpec ges =  r2Template.getDatabaseClient().sql(sql);
+        DatabaseClient.GenericExecuteSpec ges =  r2Template.getDatabaseClient().sql(mainSQL);
         for (int i = 0; i < args.size(); i++) {
             ges = ges.bind(i, args.get(i));
         }
-        return ges.map((row, rowMetadata) -> {
-                    return User.builder().id(row.get("id", Long.class))
-                            .name(row.get("name", String.class))
-                            .email(row.get("email", String.class))
-                            .password(row.get("password", String.class))
-                            .balance(row.get("balance", String.class)).build();
-                })
+
+        DatabaseClient.GenericExecuteSpec ges2 =  r2Template.getDatabaseClient().sql(countSQL);
+        for (int i = 0; i < args.size()-2; i++) {
+            ges2 = ges2.bind(i, args.get(i));
+        }
+
+        Mono<Long> longMono = ges2.map((row, rowMetaData) -> row.get("count", Long.class)).one();
+
+        return ges.map((row, rowMetadata) -> User.builder()
+                        .id(row.get("id", Long.class))
+                        .name(row.get("name", String.class))
+                        .email(row.get("email", String.class))
+                        .password(row.get("password", String.class))
+                        .balance(row.get("balance", BigDecimal.class))
+                        .build())
                 .all()
                 .collectList()
-                .map(ResponseDTO::of)
+                .zipWith(longMono, (users, count) -> {
+                    return ResponseDTO.of(ListWrapper.of(count, users));
+                })
                 .flatMap(data -> ServerResponse.ok().bodyValue(data));
     }
 
     public Mono<ServerResponse> batch(ServerRequest request){
-//        r2Template.getDatabaseClient().sql("").fetch().rowsUpdated()
         return request.bodyToFlux(User.class).collectList()
                 .flatMap(list -> {
                     final StringBuilder builder = new StringBuilder();

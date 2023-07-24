@@ -1,5 +1,7 @@
 package city.roast.config;
 
+import city.roast.filter.AuthFilter;
+import city.roast.handler.DemoHandler;
 import city.roast.model.dto.ResponseDTO;
 import city.roast.handler.SystemHandler;
 import city.roast.handler.UsersHandler;
@@ -28,6 +30,13 @@ public class RouterConfig {
 
     @Bean
     @Order(1)
+    public RouterFunction<ServerResponse> getDemoRouter(DemoHandler handler, AuthFilter authFilter) {
+        RouterFunction<ServerResponse> r = route(GET("/auth"), handler::verifyToken);
+        return route().nest(path(CONTEXT_PATH + "/demo"), () -> r).filter(authFilter).build();
+    }
+
+    @Bean
+    @Order(1)
     public RouterFunction<ServerResponse> getSystemRouter(SystemHandler handler) {
         RouterFunction<ServerResponse> r = route(GET("/version"), handler::version);
         return route().nest(path(CONTEXT_PATH + "/system"), () -> r).build();
@@ -39,6 +48,7 @@ public class RouterConfig {
         RouterFunction<ServerResponse> r = route(GET("/id/{id}"), handler::findByID)
                 .andRoute(POST(""), handler::batch)
                 .andRoute(POST("/tx-test"), handler::txTest)
+                .andRoute(POST("/login"), handler::login)
                 .andRoute(GET(""), handler::list);
         return route().nest(path(CONTEXT_PATH + "/users"), () -> r).build();
     }
