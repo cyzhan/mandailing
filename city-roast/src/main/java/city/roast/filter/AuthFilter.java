@@ -25,6 +25,7 @@ import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Base64;
 
 @Component
@@ -36,13 +37,16 @@ public class AuthFilter implements HandlerFilterFunction<ServerResponse, ServerR
     private final ObjectMapper objectMapper;
     private final AuthHelper authHelper;
     private final RedisHelper redisHelper;
+    private final long renew;
 
 
     public AuthFilter(@Value("${app.auth.secret}") String secret,
+                      @Value("${app.auth.renew.time}") String renew,
                       @Autowired ObjectMapper objectMapper,
                       @Autowired AuthHelper authHelper,
                       @Autowired RedisHelper redisHelper) {
 //        log.info("app.auth.secret = {}", secret);
+        this.renew = Long.parseLong(renew);
         this.verifier = JWT.require(Algorithm.HMAC256(secret)).build();
         this.objectMapper = objectMapper;
         this.authHelper = authHelper;
@@ -65,6 +69,14 @@ public class AuthFilter implements HandlerFilterFunction<ServerResponse, ServerR
 //            log.error(e.getMessage(), e);
             return ServerResponse.status(HttpStatus.UNAUTHORIZED).bodyValue(ResponseDTO.error(GenericError.CODE_401));
         }
+        long now = Instant.now().getEpochSecond();
+        long expAt = decodedJWT.getExpiresAtAsInstant().getEpochSecond();
+        if (expAt - now > renew){
+            //to
+        }
+
+
+
         Long userId = decodedJWT.getClaim("userId").asLong();
         return redisHelper.getTemplate().opsForValue().get(RedisKey.loginUser(userId))
                 .switchIfEmpty(Mono.just(EMPTY))

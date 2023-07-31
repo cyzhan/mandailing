@@ -87,14 +87,14 @@ public class UsersHandler {
                     return Tuples.of(RedisKey.loginUser(user.getId()), token);
                 })
                 .flatMap(tuple2 -> {
-                        String token = tuple2.getT2();
-                        String signature = token.split("\\.")[2];
-                        return redisHelper.getTemplate().opsForValue()
-                        .set(tuple2.getT1(), signature, Duration.ofSeconds(tokenTTL + 10L))
-                        .zipWith(Mono.just(token), Tuples::of);
+                    String token = tuple2.getT2();
+                    String signature = token.split("\\.")[2];
+                    return redisHelper.getTemplate().opsForValue()
+                            .set(tuple2.getT1(), signature, Duration.ofSeconds(tokenTTL + 10L))
+                            .zipWith(Mono.just(token), Tuples::of);
                 })
                 .flatMap(tuple2 -> {
-                    if (!tuple2.getT1()){
+                    if (!tuple2.getT1()) {
                         throw new RuntimeException("redis set loginUser fail");
                     }
                     Map<String, Object> map = new HashMap<>();
