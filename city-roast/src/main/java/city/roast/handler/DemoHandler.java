@@ -12,6 +12,11 @@ import reactor.core.publisher.Mono;
 public class DemoHandler {
 
     public Mono<ServerResponse> verifyToken(ServerRequest request){
+        String newToken = (String) request.attributes().get("newToken");
+        if (newToken != null){
+            log.info("newToken = " + newToken);
+            return ServerResponse.ok().bodyValue(ResponseDTO.of(newToken));
+        }
         return ServerResponse.ok().bodyValue(ResponseDTO.ok());
     }
 
