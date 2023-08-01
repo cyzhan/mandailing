@@ -46,6 +46,7 @@ public class RouterConfig {
     @Order(1)
     public RouterFunction<ServerResponse> getUsersRouter(UsersHandler handler){
         RouterFunction<ServerResponse> r = route(GET("/id/{id}"), handler::findByID)
+//                .andRoute(POST(""), handler::batch)
                 .andRoute(POST(""), handler::batch)
                 .andRoute(POST("/tx-test"), handler::txTest)
                 .andRoute(POST("/login"), handler::login)

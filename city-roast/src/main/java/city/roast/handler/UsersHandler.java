@@ -6,11 +6,9 @@ import city.roast.model.entity.User;
 import city.roast.model.vo.ListWrapper;
 import city.roast.model.vo.PageVO;
 import city.roast.repository.UserRepository;
-import city.roast.util.AuthHelper;
-import city.roast.util.QueryParamHelper;
-import city.roast.util.RedisHelper;
-import city.roast.util.SqlHelper;
+import city.roast.util.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.validation.Validator;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -51,6 +49,9 @@ public class UsersHandler {
 
     @Autowired
     private RedisHelper redisHelper;
+
+    @Autowired
+    private ValidateHelper validateHelper;
 
     private final long tokenTTL;
 
@@ -164,6 +165,13 @@ public class UsersHandler {
                 })
                 .flatMap(data -> ServerResponse.ok().bodyValue(data));
     }
+
+//    public Mono<ServerResponse> create(ServerRequest request){
+//        return request.bodyToMono(User.class)
+//                .doOnNext(user -> {
+//
+//                })
+//    }
 
     public Mono<ServerResponse> batch(ServerRequest request){
         return request.bodyToFlux(User.class).collectList()
