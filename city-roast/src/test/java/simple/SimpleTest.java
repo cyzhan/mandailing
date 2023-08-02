@@ -6,10 +6,16 @@ import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import lombok.extern.log4j.Log4j2;
 import org.junit.jupiter.api.Test;
+import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
+import reactor.core.publisher.Mono;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.Locale;
+import java.util.function.Function;
 
 @Log4j2
 public class SimpleTest {
@@ -51,6 +57,26 @@ public class SimpleTest {
                 decodedJWT.getIssuedAt(),
                 decodedJWT.getExpiresAt(),
                 decodedJWT.getIssuedAt().getTime() - decodedJWT.getExpiresAt().getTime());
+    }
+
+    @Test
+    public void reactiveTest(){
+        Function<Mono<String>, Mono<String>> transform = f -> {
+            return f.flatMap(s -> Mono.just(s.toUpperCase(Locale.ROOT)));
+        };
+
+        Mono.just("first")
+                .doOnNext(System.out::println)
+                .transform(transform)
+                .log()
+                .subscribe(System.out::println);
+
+        try {
+            Thread.sleep(1500L);
+            log.info("end");
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 }

@@ -2,7 +2,9 @@ package unit;
 
 import city.roast.config.AppConfig;
 import city.roast.model.entity.User;
+import city.roast.model.vo.UserVO;
 import city.roast.util.RedisHelper;
+import city.roast.util.ValidateHelper;
 import lombok.extern.log4j.Log4j2;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -110,6 +112,23 @@ public class UnitTest {
                 .doOnNext(list -> {
                     log.info("value =" + list.get(0));
                 }).subscribe();
+        log.info("end");
+    }
+
+    @Test
+    public void validatorTest(){
+        log.info("start");
+        ValidateHelper validateHelper = applicationContext.getBean(ValidateHelper.class);
+        UserVO vo = UserVO.builder()
+                .name("jeff")
+                .password("1234qwer")
+                .email("aaavvvccccc")
+                .build();
+        try {
+            validateHelper.validate(vo);
+        }catch (Exception e){
+
+        }
         log.info("end");
     }
 
