@@ -166,12 +166,29 @@ public class UsersHandler {
                 .flatMap(data -> ServerResponse.ok().bodyValue(data));
     }
 
-//    public Mono<ServerResponse> create(ServerRequest request){
-//        return request.bodyToMono(User.class)
-//                .doOnNext(user -> {
-//
-//                })
-//    }
+    public Mono<ServerResponse> create(ServerRequest request) {
+        return request.bodyToMono(User.class)
+                .doOnNext(validateHelper::validate)
+                .flatMap(user -> {
+                    String md5PW = EncryptHelper.md5(user.getPassword());
+                    String sql = """
+                            INSERT INTO city_roast.`user`(name, password, email, balance) VALUES 
+                            (?,?,?,?)
+                            """;
+
+                    return r2Template.getDatabaseClient().sql(sql)
+                            .bind(0, user.getName())
+                            .bind(1, md5PW)
+                            .bind(2, user.getEmail())
+                            .bind(3, 0)
+                            .fetch().first();
+                }).flatMap(result -> {
+                    log.info(result.toString());
+                    return ServerResponse.ok().bodyValue(ResponseDTO.ok());
+                }).onErrorResume(e -> {
+                    return ServerResponse.ok().bodyValue(ResponseDTO.error(500, e.getMessage()));
+                });
+    }
 
     public Mono<ServerResponse> batch(ServerRequest request){
         return request.bodyToFlux(User.class).collectList()

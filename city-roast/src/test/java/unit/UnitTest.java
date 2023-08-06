@@ -120,14 +120,15 @@ public class UnitTest {
         log.info("start");
         ValidateHelper validateHelper = applicationContext.getBean(ValidateHelper.class);
         UserVO vo = UserVO.builder()
-                .name("jeff")
-                .password("1234qwer")
-                .email("aaavvvccccc")
+                .name("jeff1233")
+                .password("qwer1234")
+                .email("jeff@gmail.com")
                 .build();
         try {
             validateHelper.validate(vo);
+            log.info("validated");
         }catch (Exception e){
-
+            log.error(e.getMessage());
         }
         log.info("end");
     }

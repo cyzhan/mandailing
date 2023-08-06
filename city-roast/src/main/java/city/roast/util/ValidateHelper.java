@@ -26,7 +26,6 @@ public class ValidateHelper {
         Set<ConstraintViolation<T>> constraintViolations = validator.validate(t);
         for (ConstraintViolation<T> violation : constraintViolations) {
             String errorMsg = String.format("%s: %s", violation.getPropertyPath().toString(), violation.getMessage());
-            log.error(errorMsg);
             throw new ValidationException(errorMsg);
         }
     }
