@@ -2,7 +2,7 @@ package city.roast.config;
 
 import city.roast.filter.AuthFilter;
 import city.roast.handler.DemoHandler;
-import city.roast.model.dto.ResponseDTO;
+import city.roast.model.vo.ResponseVO;
 import city.roast.handler.SystemHandler;
 import city.roast.handler.UsersHandler;
 import lombok.extern.log4j.Log4j2;
@@ -47,7 +47,8 @@ public class RouterConfig {
     public RouterFunction<ServerResponse> getUsersRouter(UsersHandler handler){
         RouterFunction<ServerResponse> r = route(GET("/id/{id}"), handler::findByID)
 //                .andRoute(POST(""), handler::batch)
-                .andRoute(POST(""), handler::batch)
+                .andRoute(POST(""), handler::create)
+                .andRoute(POST("/batch"), handler::batch)
                 .andRoute(POST("/tx-test"), handler::txTest)
                 .andRoute(POST("/login"), handler::login)
                 .andRoute(GET(""), handler::list);
@@ -67,7 +68,7 @@ public class RouterConfig {
     }
 
     private Mono<ServerResponse> apiNotFound(){
-        return ServerResponse.ok().bodyValue(ResponseDTO.apiNotFound());
+        return ServerResponse.ok().bodyValue(ResponseVO.apiNotFound());
     }
 
 }

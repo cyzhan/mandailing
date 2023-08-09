@@ -1,9 +1,9 @@
 package city.roast.filter;
 
-import city.roast.constant.GenericError;
+import city.roast.constant.Error;
 import city.roast.constant.RedisKey;
 import city.roast.model.TokenPayload;
-import city.roast.model.dto.ResponseDTO;
+import city.roast.model.vo.ResponseVO;
 import city.roast.util.AuthHelper;
 import city.roast.util.RedisHelper;
 import com.auth0.jwt.JWT;
@@ -78,7 +78,7 @@ public class AuthFilter implements HandlerFilterFunction<ServerResponse, ServerR
         String token = serverRequest.headers().firstHeader("Authorization");
         if (null == token || EMPTY.equals(token)) {
             log.error("Authorization is not provided");
-            return ServerResponse.status(HttpStatus.UNAUTHORIZED).bodyValue(ResponseDTO.error(GenericError.CODE_401));
+            return ServerResponse.status(HttpStatus.UNAUTHORIZED).bodyValue(ResponseVO.error(Error.CODE_401));
         }
 
         DecodedJWT decodedJWT;
@@ -87,7 +87,7 @@ public class AuthFilter implements HandlerFilterFunction<ServerResponse, ServerR
             decodedJWT = verifier.verify(token);
             tokenPayload = readTokenPayload(decodedJWT);
         } catch (JWTVerificationException | JsonProcessingException e) {
-            return ServerResponse.status(HttpStatus.UNAUTHORIZED).bodyValue(ResponseDTO.error(GenericError.CODE_401));
+            return ServerResponse.status(HttpStatus.UNAUTHORIZED).bodyValue(ResponseVO.error(Error.CODE_401));
         }
 
         long now = Instant.now().getEpochSecond();
@@ -107,7 +107,7 @@ public class AuthFilter implements HandlerFilterFunction<ServerResponse, ServerR
                     })
                     .onErrorResume(Exception.class, e -> {
                         log.error(e.getMessage());
-                        return ServerResponse.status(HttpStatus.UNAUTHORIZED).bodyValue(ResponseDTO.error(GenericError.CODE_401));
+                        return ServerResponse.status(HttpStatus.UNAUTHORIZED).bodyValue(ResponseVO.error(Error.CODE_401));
                     });
         }
 
@@ -130,11 +130,11 @@ public class AuthFilter implements HandlerFilterFunction<ServerResponse, ServerR
                     } else if (result == 2) {
                         return handlerFunction.handle(serverRequest);
                     }
-                    return ServerResponse.status(HttpStatus.UNAUTHORIZED).bodyValue(ResponseDTO.error(GenericError.CODE_401));
+                    return ServerResponse.status(HttpStatus.UNAUTHORIZED).bodyValue(ResponseVO.error(Error.CODE_401));
                 })
                 .onErrorResume(Exception.class, e -> {
                     log.error(e.getMessage());
-                    return ServerResponse.status(HttpStatus.UNAUTHORIZED).bodyValue(ResponseDTO.error(GenericError.CODE_401));
+                    return ServerResponse.status(HttpStatus.UNAUTHORIZED).bodyValue(ResponseVO.error(Error.CODE_401));
                 });
     }
 

@@ -1,14 +1,17 @@
 package city.roast.handler;
 
+import city.roast.constant.Error;
 import city.roast.constant.RedisKey;
-import city.roast.model.dto.ResponseDTO;
+import city.roast.exception.DomainLogicException;
+import city.roast.model.vo.ResponseVO;
 import city.roast.model.entity.User;
 import city.roast.model.vo.ListWrapper;
+import city.roast.model.vo.LoginVO;
 import city.roast.model.vo.PageVO;
+import city.roast.model.vo.UserVO;
 import city.roast.repository.UserRepository;
 import city.roast.util.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.validation.Validator;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,13 +22,10 @@ import org.springframework.transaction.reactive.TransactionalOperator;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
 import java.math.BigDecimal;
 import java.time.Duration;
-import java.time.Instant;
-import java.time.temporal.TemporalUnit;
 import java.util.*;
 
 @Service
@@ -53,6 +53,9 @@ public class UsersHandler {
     @Autowired
     private ValidateHelper validateHelper;
 
+    @Autowired
+    private ExceptionHandler exceptionHandler;
+
     private final long tokenTTL;
 
     public UsersHandler(@Value("${app.token.ttl}") String tokenTTL) {
@@ -68,24 +71,21 @@ public class UsersHandler {
                 .flatMap(userEntity -> ServerResponse.ok().bodyValue(userEntity));
     }
 
-    public Mono<ServerResponse> findByCondition(ServerRequest request){
-        return Mono.just(request)
-                .flatMap(req -> {
-                    Optional<String> optional = req.queryParam("name");
-                    if (optional.isPresent()){
-                        return userRepository.findByName(optional.get());
-                    }else{
-                        return Mono.empty();
-                    }
-                })
-                .flatMap(userEntity -> ServerResponse.ok().bodyValue(userEntity));
-    }
-
     public Mono<ServerResponse> login(ServerRequest request){
-        return request.bodyToMono(User.class)
+        final Map<String, Object> cache = new HashMap<>();
+        final String LOGIN_VO = "login_vo";
+        return request.bodyToMono(LoginVO.class)
+                .doOnNext(loginVO -> cache.put(LOGIN_VO, loginVO))
+                .flatMap(loginVO -> userRepository.findByName(loginVO.getName()))
+                .switchIfEmpty(Mono.error(new DomainLogicException(Error.CODE_1001)))
                 .map(user -> {
-                    String token = authHelper.generateToken(user);
-                    return Tuples.of(RedisKey.loginUser(user.getId()), token);
+                    LoginVO loginVO = (LoginVO) cache.get(LOGIN_VO);
+                    String encryptPW = EncryptHelper.md5(loginVO.getPassword());
+                    if (encryptPW.equals(user.getPassword())){
+                        String token = authHelper.generateToken(user);
+                        return Tuples.of(RedisKey.loginUser(user.getId()), token);
+                    }
+                    throw new DomainLogicException(Error.CODE_1001);
                 })
                 .flatMap(tuple2 -> {
                     String token = tuple2.getT2();
@@ -96,16 +96,13 @@ public class UsersHandler {
                 })
                 .flatMap(tuple2 -> {
                     if (!tuple2.getT1()) {
-                        throw new RuntimeException("redis set loginUser fail");
+                        throw new DomainLogicException(Error.CODE_1001, "redis set loginUser fail");
                     }
                     Map<String, Object> map = new HashMap<>();
                     map.put("token", tuple2.getT2());
-                    return ServerResponse.ok().bodyValue(ResponseDTO.of(map));
+                    return ServerResponse.ok().bodyValue(ResponseVO.of(map));
                 })
-                .onErrorResume(Exception.class, e -> {
-                    log.error(e);
-                    return ServerResponse.ok().bodyValue(ResponseDTO.error(500, e.getMessage()));
-                });
+                .onErrorResume(Exception.class, exceptionHandler::handle);
     }
 
     public Mono<ServerResponse> list(ServerRequest request){
@@ -161,13 +158,13 @@ public class UsersHandler {
                 .all()
                 .collectList()
                 .zipWith(longMono, (users, count) -> {
-                    return ResponseDTO.of(ListWrapper.of(count, users));
+                    return ResponseVO.of(ListWrapper.of(count, users));
                 })
                 .flatMap(data -> ServerResponse.ok().bodyValue(data));
     }
 
     public Mono<ServerResponse> create(ServerRequest request) {
-        return request.bodyToMono(User.class)
+        return request.bodyToMono(UserVO.class)
                 .doOnNext(validateHelper::validate)
                 .flatMap(user -> {
                     String md5PW = EncryptHelper.md5(user.getPassword());
@@ -181,13 +178,11 @@ public class UsersHandler {
                             .bind(1, md5PW)
                             .bind(2, user.getEmail())
                             .bind(3, 0)
-                            .fetch().first();
+                            .fetch().rowsUpdated();
                 }).flatMap(result -> {
-                    log.info(result.toString());
-                    return ServerResponse.ok().bodyValue(ResponseDTO.ok());
-                }).onErrorResume(e -> {
-                    return ServerResponse.ok().bodyValue(ResponseDTO.error(500, e.getMessage()));
-                });
+                    log.info("rowsUpdated = {}", result);
+                    return ServerResponse.ok().bodyValue(ResponseVO.ok());
+                }).onErrorResume(e -> ServerResponse.ok().bodyValue(ResponseVO.error(500, e.getMessage())));
     }
 
     public Mono<ServerResponse> batch(ServerRequest request){
@@ -215,7 +210,7 @@ public class UsersHandler {
                 })
                 .map(updatedRow -> {
                     log.info("updatedRow = {}", updatedRow);
-                    return ResponseDTO.ok();
+                    return ResponseVO.ok();
                 })
                 .flatMap(data -> ServerResponse.ok().bodyValue(data));
     }
@@ -254,12 +249,12 @@ public class UsersHandler {
 //                            .bind(3, 0)
                             //command out above code to deliberately invoke exception
                             .then()
-                            .thenReturn(ResponseDTO.ok());
+                            .thenReturn(ResponseVO.ok());
                 })
                 .flatMap(data -> ServerResponse.ok().bodyValue(data))
 //                .as(operator::transactional)
                 .onErrorResume(Exception.class, e -> {
-                    return ServerResponse.status(500).bodyValue(ResponseDTO.error(500, e.getMessage()));
+                    return ServerResponse.status(500).bodyValue(ResponseVO.error(500, e.getMessage()));
                 });
     }
 
