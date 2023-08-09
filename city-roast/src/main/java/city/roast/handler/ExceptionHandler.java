@@ -13,7 +13,7 @@ public class ExceptionHandler {
 
     public Mono<ServerResponse> handle(Throwable t){
         if (t instanceof DomainLogicException dle){
-            if (!dle.getMessage().isEmpty()){
+            if (dle.getMessage() != null && !dle.getMessage().isEmpty()){
                 log.info(dle.getMessage());
             }
             return ServerResponse.ok().bodyValue(ResponseVO.error(dle.getError()));

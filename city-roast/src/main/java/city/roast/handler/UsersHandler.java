@@ -75,6 +75,7 @@ public class UsersHandler {
         final Map<String, Object> cache = new HashMap<>();
         final String LOGIN_VO = "login_vo";
         return request.bodyToMono(LoginVO.class)
+                .doOnNext(validateHelper::validate)
                 .doOnNext(loginVO -> cache.put(LOGIN_VO, loginVO))
                 .flatMap(loginVO -> userRepository.findByName(loginVO.getName()))
                 .switchIfEmpty(Mono.error(new DomainLogicException(Error.CODE_1001)))
