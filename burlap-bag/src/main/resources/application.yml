@@ -1,0 +1,5 @@
+server:
+  port: 8096  #端口号
+#spring:
+#  application:
+#    name: microServiceCloudGateway

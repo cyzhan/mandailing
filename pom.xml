@@ -6,6 +6,7 @@
     <modules>
         <module>city-roast</module>
         <module>raw-bean</module>
+        <module>burlap-bag</module>
     </modules>
 
     <parent>
@@ -26,6 +27,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
+        <spring-cloud.version>2022.0.4</spring-cloud.version>
     </properties>
 
     <dependencyManagement>
@@ -35,6 +37,14 @@
                 <artifactId>disruptor</artifactId>
                 <version>3.4.2</version>
             </dependency>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
         </dependencies>
+
     </dependencyManagement>
 </project>
