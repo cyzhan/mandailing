@@ -14,9 +14,13 @@ import org.springframework.data.redis.connection.ReturnType;
 import org.springframework.data.redis.core.ReactiveRedisCallback;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
+import reactor.util.retry.Retry;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
 
 @SpringBootTest(classes = {config.TestConfig.class, AppConfig.class})
 @Log4j2
@@ -131,6 +135,24 @@ public class UnitTest {
             log.error(e.getMessage());
         }
         log.info("end");
+    }
+
+    public void rxRedisLockTest(){
+        String key = "abc";
+        String value = UUID.randomUUID().toString();
+        var redisHelper = applicationContext.getBean(RedisHelper.class);
+        redisHelper.getTemplate().opsForValue().setIfAbsent(key, value, Duration.of(10L, ChronoUnit.SECONDS))
+                .flatMap(result -> {
+                    if (!result){
+                        return Mono.just("update db process");
+                    }
+
+                    throw new RuntimeException("try obtain lock fail");
+                })
+                .doOnError(throwable -> {
+                    log.info(throwable.getMessage());
+                })
+                .retryWhen(Retry.fixedDelay(3, Duration.ofSeconds(2)));
     }
 
 }
