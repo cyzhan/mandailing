@@ -7,6 +7,8 @@ import city.roast.util.RedisHelper;
 import city.roast.util.ValidateHelper;
 import lombok.extern.log4j.Log4j2;
 import org.junit.jupiter.api.Test;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
@@ -137,22 +139,47 @@ public class UnitTest {
         log.info("end");
     }
 
+    @Test
     public void rxRedisLockTest(){
         String key = "abc";
         String value = UUID.randomUUID().toString();
         var redisHelper = applicationContext.getBean(RedisHelper.class);
         redisHelper.getTemplate().opsForValue().setIfAbsent(key, value, Duration.of(10L, ChronoUnit.SECONDS))
-                .flatMap(result -> {
-                    if (!result){
-                        return Mono.just("update db process");
+                .doOnNext(isLockObtained -> {
+                    log.info("isLockObtained: {}", isLockObtained);
+                    if (!isLockObtained){
+                        throw new RuntimeException("try obtain lock fail");
                     }
-
-                    throw new RuntimeException("try obtain lock fail");
                 })
                 .doOnError(throwable -> {
                     log.info(throwable.getMessage());
                 })
-                .retryWhen(Retry.fixedDelay(3, Duration.ofSeconds(2)));
+                .retryWhen(Retry.fixedDelay(3, Duration.ofSeconds(2)))
+                .onErrorResume(throwable -> Mono.just(Boolean.FALSE))
+                .flatMap(isLockObtained -> {+
+                    if (isLockObtained){
+                        return Mono.just("update db success");
+                    }
+                    throw new RuntimeException("lock unavailable");
+                })
+                .flatMap(s -> {
+                    log.info(s);
+                    return redisHelper.getTemplate().opsForValue().delete(key);
+                })
+                .doOnNext(result -> {
+                    log.info("lock del");
+                })
+                .doOnError(throwable -> {
+                    log.info(throwable.getMessage());
+                })
+                .subscribe();
+
+
+        try {
+            Thread.sleep(10000L);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 }
