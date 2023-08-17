@@ -3,12 +3,8 @@ package city.roast.handler;
 import city.roast.constant.Error;
 import city.roast.constant.RedisKey;
 import city.roast.exception.DomainLogicException;
-import city.roast.model.vo.ResponseVO;
+import city.roast.model.vo.*;
 import city.roast.model.entity.User;
-import city.roast.model.vo.ListWrapper;
-import city.roast.model.vo.LoginVO;
-import city.roast.model.vo.PageVO;
-import city.roast.model.vo.UserVO;
 import city.roast.repository.UserRepository;
 import city.roast.util.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -257,6 +253,46 @@ public class UsersHandler {
                 .onErrorResume(Exception.class, e -> {
                     return ServerResponse.status(500).bodyValue(ResponseVO.error(500, e.getMessage()));
                 });
+    }
+
+    public Mono<ServerResponse> patchBalance(ServerRequest request){
+        return request.bodyToMono(PatchBalanceVO.class)
+                .doOnNext(validateHelper::validate)
+                .flatMap(patchBalanceVO -> {
+                    return redisHelper.obtainLock(RedisKey.balanceLock(patchBalanceVO.getUserId()), UUID.randomUUID().toString())
+                            .zipWith(Mono.just(patchBalanceVO), Tuples::of);
+                })
+                .doOnNext(tuple2 -> {
+                    if (!tuple2.getT1().getObtained()){
+                        throw new DomainLogicException(Error.CODE_4001);
+                    }
+                })
+                .flatMap(tuple2 -> {
+                    String sql = """
+                            UPDATE city_roast.`user` u SET balance = ? WHERE u.id = ?;
+                            """;
+
+                    return r2Template.getDatabaseClient().sql(sql)
+                            .bind(0, tuple2.getT2().getBalance())
+                            .bind(1, tuple2.getT2().getUserId())
+                            .fetch()
+                            .rowsUpdated()
+                            .zipWith(Mono.just(tuple2.getT1()), Tuples::of);
+                })
+                .flatMap(tuple2 -> {
+                    String key = tuple2.getT2().getKey();
+                    String valueForRls = tuple2.getT2().getValueForRls();
+                    return redisHelper.rlsLock(key, valueForRls);
+                })
+                .flatMap(rlsLockResult -> {
+                    if (rlsLockResult != 1){
+                        log.info("rls redis fail");
+                    }
+                    return ServerResponse.ok().bodyValue(ResponseVO.ok());
+                })
+                .onErrorResume(throwable -> exceptionHandler.handle(throwable));
+
+
     }
 
 }

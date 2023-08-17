@@ -51,6 +51,7 @@ public class RouterConfig {
                 .andRoute(POST("/batch"), handler::batch)
                 .andRoute(POST("/tx-test"), handler::txTest)
                 .andRoute(POST("/login"), handler::login)
+                .andRoute(PATCH("/balance"), handler::patchBalance)
                 .andRoute(GET(""), handler::list);
         return route().nest(path(CONTEXT_PATH + "/users"), () -> r).build();
     }

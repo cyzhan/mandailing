@@ -10,13 +10,10 @@ public class RedisKey {
         return String.format("loginUser:%s", userId);
     }
 
-//    public static String tempAccessUser(int userId){
-//        return String.format("tempAccessUser:%s", userId);
-//    }
-//
-//    public static String renewTokenLock(int userId){
-//        return String.format("renewTokenLock:%s", userId);
-//    }
+
+    public static String balanceLock(long userId){
+        return "userBalance:" + userId;
+    }
 
     public static String loginFailCount(String username){
         return String.format("loginCount:%s", username);

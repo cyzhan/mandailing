@@ -141,10 +141,18 @@ public class UnitTest {
 
     @Test
     public void rxRedisLockTest(){
+        final String deleteKeyScript = """
+                if redis.call('get', KEYS[1]) == ARGV[1] then
+                    return redis.call('del', KEYS[1], ARGV[1])
+                else
+                    return "0"
+                end
+                """;
+
         String key = "abc";
         String value = UUID.randomUUID().toString();
         var redisHelper = applicationContext.getBean(RedisHelper.class);
-        redisHelper.getTemplate().opsForValue().setIfAbsent(key, value, Duration.of(10L, ChronoUnit.SECONDS))
+        redisHelper.getTemplate().opsForValue().setIfAbsent(key, value, Duration.of(30L, ChronoUnit.SECONDS))
                 .doOnNext(isLockObtained -> {
                     log.info("isLockObtained: {}", isLockObtained);
                     if (!isLockObtained){
@@ -156,21 +164,28 @@ public class UnitTest {
                 })
                 .retryWhen(Retry.fixedDelay(3, Duration.ofSeconds(2)))
                 .onErrorResume(throwable -> Mono.just(Boolean.FALSE))
-                .flatMap(isLockObtained -> {+
+                .flatMap(isLockObtained -> {
                     if (isLockObtained){
-                        return Mono.just("update db success");
+                        return Mono.just(1L);
                     }
                     throw new RuntimeException("lock unavailable");
                 })
                 .flatMap(s -> {
-                    log.info(s);
-                    return redisHelper.getTemplate().opsForValue().delete(key);
+                    log.info("row updated ");
+                    ByteBuffer byteBufferScript = ByteBuffer.wrap(deleteKeyScript.getBytes());
+                    final ByteBuffer[] keysAndArgs = new ByteBuffer[2];
+                    keysAndArgs[0] = ByteBuffer.wrap(key.getBytes());
+                    keysAndArgs[1] = ByteBuffer.wrap(value.getBytes());
+                    return redisHelper.getTemplate().execute((ReactiveRedisCallback<Long>) connection ->
+                            connection.scriptingCommands().eval(byteBufferScript, ReturnType.INTEGER, 1, keysAndArgs))
+                            .collectList();
                 })
-                .doOnNext(result -> {
-                    log.info("lock del");
-                })
-                .doOnError(throwable -> {
-                    log.info(throwable.getMessage());
+                .doOnNext(list -> log.info("del key {}", list.get(0) == 1 ? "success":"fail"))
+                .then()
+                .doOnNext(vod -> log.info("process end"))
+                .onErrorResume(throwable -> {
+                    log.info("error resume, msg = {}", throwable.getMessage());
+                    return Mono.empty();
                 })
                 .subscribe();
 
@@ -181,5 +196,6 @@ public class UnitTest {
             throw new RuntimeException(e);
         }
     }
+
 
 }
