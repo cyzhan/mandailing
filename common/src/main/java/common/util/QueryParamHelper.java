@@ -1,6 +1,7 @@
-package city.roast.util;
+package common.util;
 
-import city.roast.model.vo.PageVO;
+
+import common.model.vo.PageVO;
 import org.springframework.web.reactive.function.server.ServerRequest;
 
 import java.util.ArrayList;

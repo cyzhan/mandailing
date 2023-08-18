@@ -1,4 +1,4 @@
-package city.roast.model.vo;
+package common.model.vo;
 
 
 

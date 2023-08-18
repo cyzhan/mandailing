@@ -9,8 +9,10 @@ import city.roast.model.entity.User;
 import city.roast.repository.UserRepository;
 import city.roast.util.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import common.model.vo.ListWrapper;
+import common.model.vo.PageVO;
 import common.model.vo.ResponseVO;
-import common.util.RedisHelper;
+import common.util.*;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -71,15 +73,16 @@ public class UsersHandler {
     }
 
     public Mono<ServerResponse> login(ServerRequest request){
-        final Map<String, Object> cache = new HashMap<>();
-        final String LOGIN_VO = "login_vo";
+
         return request.bodyToMono(LoginVO.class)
                 .doOnNext(validateHelper::validate)
-                .doOnNext(loginVO -> cache.put(LOGIN_VO, loginVO))
-                .flatMap(loginVO -> userRepository.findByName(loginVO.getName()))
-                .switchIfEmpty(Mono.error(new DomainLogicException(Error.CODE_1001)))
-                .map(user -> {
-                    LoginVO loginVO = (LoginVO) cache.get(LOGIN_VO);
+                .flatMap(loginVO -> Mono.just(loginVO).zipWith(
+                        userRepository.findByName(loginVO.getName()).switchIfEmpty(Mono.error(new DomainLogicException(Error.CODE_1001))),
+                        Tuples::of)
+                )
+                .map(tuples -> {
+                    LoginVO loginVO = tuples.getT1();
+                    User user = tuples.getT2();
                     String encryptPW = EncryptHelper.md5(loginVO.getPassword());
                     if (encryptPW.equals(user.getPassword())){
                         String token = authHelper.generateToken(user);

@@ -1,4 +1,4 @@
-package city.roast.util;
+package common.util;
 
 public class SqlHelper {
 
