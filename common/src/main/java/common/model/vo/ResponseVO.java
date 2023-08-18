@@ -1,7 +1,7 @@
-package city.roast.model.vo;
+package common.model.vo;
 
-import city.roast.constant.Error;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import common.constant.Error;
 import lombok.Getter;
 
 @Getter

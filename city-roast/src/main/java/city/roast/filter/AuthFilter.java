@@ -1,11 +1,11 @@
 package city.roast.filter;
 
-import city.roast.constant.Error;
+import common.constant.Error;
 import city.roast.constant.RedisKey;
 import city.roast.model.TokenPayload;
-import city.roast.model.vo.ResponseVO;
+
 import city.roast.util.AuthHelper;
-import city.roast.util.RedisHelper;
+
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
@@ -13,6 +13,8 @@ import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import common.model.vo.ResponseVO;
+import common.util.RedisHelper;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;

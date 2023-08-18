@@ -1,4 +1,4 @@
-package city.roast.constant;
+package common.constant;
 
 import lombok.Getter;
 

@@ -6,6 +6,7 @@ import city.roast.model.entity.User;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTCreator;
 import com.auth0.jwt.algorithms.Algorithm;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -14,6 +15,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 @Component
+@Log4j2
 public class AuthHelper {
 
     private final Algorithm algorithm;
@@ -56,7 +58,7 @@ public class AuthHelper {
                         builder.withClaim(field.getName(), (Double) field.get(tokenPayload));
                     }
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    log.error(e.getMessage(), e);
                 }
             }
         }

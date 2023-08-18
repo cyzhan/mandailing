@@ -1,6 +1,6 @@
 package city.roast.exception;
 
-import city.roast.constant.Error;
+import common.constant.Error;
 import lombok.Getter;
 
 @Getter

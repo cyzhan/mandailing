@@ -1,7 +1,8 @@
 package city.roast.handler;
 
 import city.roast.exception.DomainLogicException;
-import city.roast.model.vo.ResponseVO;
+
+import common.model.vo.ResponseVO;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.server.ServerResponse;

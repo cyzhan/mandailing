@@ -1,9 +1,10 @@
-package city.roast.util;
+package common.util;
 
-import city.roast.model.vo.LockVO;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import common.model.vo.LockVO;
 import lombok.AllArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.data.redis.connection.ReturnType;

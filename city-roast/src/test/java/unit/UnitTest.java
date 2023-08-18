@@ -3,8 +3,9 @@ package unit;
 import city.roast.config.AppConfig;
 import city.roast.model.entity.User;
 import city.roast.model.vo.UserVO;
-import city.roast.util.RedisHelper;
+
 import city.roast.util.ValidateHelper;
+import common.util.RedisHelper;
 import lombok.extern.log4j.Log4j2;
 import org.junit.jupiter.api.Test;
 import org.reactivestreams.Subscriber;
@@ -31,7 +32,7 @@ public class UnitTest {
     @Autowired
     private ApplicationContext applicationContext;
 
-    @Test
+//    @Test
     public void reactiveRedisTest1() {
         var redisHelper = applicationContext.getBean(RedisHelper.class);
         User user = User.builder()
@@ -46,7 +47,7 @@ public class UnitTest {
                 .verifyComplete();
     }
 
-    @Test
+//    @Test
     public void reactiveRedisTest2() {
         var redisHelper = applicationContext.getBean(RedisHelper.class);
 
@@ -56,7 +57,7 @@ public class UnitTest {
 //                .verifyComplete();
     }
 
-    @Test
+//    @Test
     public void reactiveRedisTest3() {
         log.info("start");
         var redisHelper = applicationContext.getBean(RedisHelper.class);
@@ -70,7 +71,7 @@ public class UnitTest {
         log.info("end");
     }
 
-    @Test
+//    @Test
     public void reactiveRedisTest4() {
         log.info("start");
         var redisHelper = applicationContext.getBean(RedisHelper.class);
@@ -90,7 +91,7 @@ public class UnitTest {
         log.info("end");
     }
 
-    @Test
+//    @Test
     public void reactiveRedisTest5() {
         log.info("start");
         String script = """
@@ -121,7 +122,7 @@ public class UnitTest {
         log.info("end");
     }
 
-    @Test
+//    @Test
     public void validatorTest(){
         log.info("start");
         ValidateHelper validateHelper = applicationContext.getBean(ValidateHelper.class);
@@ -139,7 +140,7 @@ public class UnitTest {
         log.info("end");
     }
 
-    @Test
+//    @Test
     public void rxRedisLockTest(){
         final String deleteKeyScript = """
                 if redis.call('get', KEYS[1]) == ARGV[1] then

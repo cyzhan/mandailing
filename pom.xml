@@ -7,6 +7,7 @@
         <module>city-roast</module>
         <module>raw-bean</module>
         <module>burlap-bag</module>
+        <module>common</module>
     </modules>
 
     <parent>

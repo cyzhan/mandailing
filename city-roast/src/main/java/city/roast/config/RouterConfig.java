@@ -2,9 +2,10 @@ package city.roast.config;
 
 import city.roast.filter.AuthFilter;
 import city.roast.handler.DemoHandler;
-import city.roast.model.vo.ResponseVO;
+
 import city.roast.handler.SystemHandler;
 import city.roast.handler.UsersHandler;
+import common.model.vo.ResponseVO;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
