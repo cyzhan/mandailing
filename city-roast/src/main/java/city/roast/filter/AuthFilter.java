@@ -1,7 +1,6 @@
 package city.roast.filter;
 
 import common.constant.Error;
-import city.roast.constant.RedisKey;
 import city.roast.model.TokenPayload;
 
 import city.roast.util.AuthHelper;
@@ -13,6 +12,7 @@ import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import common.constant.RedisKey;
 import common.model.vo.ResponseVO;
 import common.util.RedisHelper;
 import lombok.extern.log4j.Log4j2;

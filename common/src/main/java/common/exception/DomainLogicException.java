@@ -1,4 +1,4 @@
-package city.roast.exception;
+package common.exception;
 
 import common.constant.Error;
 import lombok.Getter;
@@ -15,8 +15,8 @@ public class DomainLogicException extends RuntimeException{
         this.error = error;
     }
 
-    public DomainLogicException(Error error, String message){
-        super(message);
+    public DomainLogicException(Error error, String msgPrintOnLog){
+        super(msgPrintOnLog);
         this.error = error;
     }
 

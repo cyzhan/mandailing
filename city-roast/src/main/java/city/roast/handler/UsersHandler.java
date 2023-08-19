@@ -2,13 +2,13 @@ package city.roast.handler;
 
 import city.roast.model.vo.*;
 import common.constant.Error;
-import city.roast.constant.RedisKey;
-import city.roast.exception.DomainLogicException;
 
 import city.roast.model.entity.User;
 import city.roast.repository.UserRepository;
 import city.roast.util.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import common.constant.RedisKey;
+import common.exception.DomainLogicException;
 import common.model.vo.ListWrapper;
 import common.model.vo.PageVO;
 import common.model.vo.ResponseVO;
@@ -65,15 +65,13 @@ public class UsersHandler {
 
     public Mono<ServerResponse> findByID(ServerRequest request){
         return Mono.just(request)
-                .flatMap(req -> {
-                    Long id = Long.parseLong(req.pathVariables().get("id"));
-                    return userRepository.findByName("jeff");
-                })
-                .flatMap(userEntity -> ServerResponse.ok().bodyValue(userEntity));
+                .flatMap(req -> userRepository.findById(Long.parseLong(req.pathVariables().get("id"))))
+                .switchIfEmpty(Mono.error(new DomainLogicException(Error.CODE_404)))
+                .flatMap(userEntity -> ServerResponse.ok().bodyValue(ResponseVO.of(userEntity)))
+                .onErrorResume(exceptionHandler::handle);
     }
 
     public Mono<ServerResponse> login(ServerRequest request){
-
         return request.bodyToMono(LoginVO.class)
                 .doOnNext(validateHelper::validate)
                 .flatMap(loginVO -> Mono.just(loginVO).zipWith(
@@ -99,7 +97,7 @@ public class UsersHandler {
                 })
                 .flatMap(tuple2 -> {
                     if (!tuple2.getT1()) {
-                        throw new DomainLogicException(Error.CODE_1001, "redis set loginUser fail");
+                        return Mono.error(new DomainLogicException(Error.CODE_1001, "redis set loginUser fail"));
                     }
                     Map<String, Object> map = new HashMap<>();
                     map.put("token", tuple2.getT2());
@@ -297,8 +295,6 @@ public class UsersHandler {
                     return ServerResponse.ok().bodyValue(ResponseVO.ok());
                 })
                 .onErrorResume(throwable -> exceptionHandler.handle(throwable));
-
-
     }
 
 }
