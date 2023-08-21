@@ -17,7 +17,7 @@ public class ExceptionHandler {
             if (dle.getMessage() != null && !dle.getMessage().isEmpty()){
                 log.info(dle.getMessage());
             }
-            return ServerResponse.ok().bodyValue(ResponseVO.error(dle.getError()));
+            return ServerResponse.ok().bodyValue(ResponseVO.error(dle.getApiError()));
         }
         return ServerResponse.ok().bodyValue(ResponseVO.error(500, t.getMessage()));
     }

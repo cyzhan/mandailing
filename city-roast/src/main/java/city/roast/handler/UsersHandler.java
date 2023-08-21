@@ -1,11 +1,10 @@
 package city.roast.handler;
 
 import city.roast.model.vo.*;
-import common.constant.Error;
+import common.constant.ApiError;
 
 import city.roast.model.entity.User;
 import city.roast.repository.UserRepository;
-import city.roast.util.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import common.constant.RedisKey;
 import common.exception.DomainLogicException;
@@ -13,6 +12,7 @@ import common.model.vo.ListWrapper;
 import common.model.vo.PageVO;
 import common.model.vo.ResponseVO;
 import common.util.*;
+import common.util.AuthHelper;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -66,7 +66,7 @@ public class UsersHandler {
     public Mono<ServerResponse> findByID(ServerRequest request){
         return Mono.just(request)
                 .flatMap(req -> userRepository.findById(Long.parseLong(req.pathVariables().get("id"))))
-                .switchIfEmpty(Mono.error(new DomainLogicException(Error.CODE_404)))
+                .switchIfEmpty(Mono.error(new DomainLogicException(ApiError.CODE_404)))
                 .flatMap(userEntity -> ServerResponse.ok().bodyValue(ResponseVO.of(userEntity)))
                 .onErrorResume(exceptionHandler::handle);
     }
@@ -75,7 +75,7 @@ public class UsersHandler {
         return request.bodyToMono(LoginVO.class)
                 .doOnNext(validateHelper::validate)
                 .flatMap(loginVO -> Mono.just(loginVO).zipWith(
-                        userRepository.findByName(loginVO.getName()).switchIfEmpty(Mono.error(new DomainLogicException(Error.CODE_1001))),
+                        userRepository.findByName(loginVO.getName()).switchIfEmpty(Mono.error(new DomainLogicException(ApiError.CODE_1001))),
                         Tuples::of)
                 )
                 .map(tuples -> {
@@ -83,10 +83,10 @@ public class UsersHandler {
                     User user = tuples.getT2();
                     String encryptPW = EncryptHelper.md5(loginVO.getPassword());
                     if (encryptPW.equals(user.getPassword())){
-                        String token = authHelper.generateToken(user);
+                        String token = authHelper.generateToken(user.getId(), user.getName());
                         return Tuples.of(RedisKey.loginUser(user.getId()), token);
                     }
-                    throw new DomainLogicException(Error.CODE_1001);
+                    throw new DomainLogicException(ApiError.CODE_1002);
                 })
                 .flatMap(tuple2 -> {
                     String token = tuple2.getT2();
@@ -97,7 +97,7 @@ public class UsersHandler {
                 })
                 .flatMap(tuple2 -> {
                     if (!tuple2.getT1()) {
-                        return Mono.error(new DomainLogicException(Error.CODE_1001, "redis set loginUser fail"));
+                        return Mono.error(new DomainLogicException(ApiError.CODE_1002, "redis set loginUser fail"));
                     }
                     Map<String, Object> map = new HashMap<>();
                     map.put("token", tuple2.getT2());
@@ -268,7 +268,7 @@ public class UsersHandler {
                 })
                 .doOnNext(tuple2 -> {
                     if (!tuple2.getT1().getObtained()){
-                        throw new DomainLogicException(Error.CODE_4001);
+                        throw new DomainLogicException(ApiError.CODE_4001);
                     }
                 })
                 .flatMap(tuple2 -> {

@@ -1,11 +1,11 @@
-package city.roast.util;
+package common.util;
 
-import city.roast.annotation.TokenField;
-import city.roast.model.TokenPayload;
-import city.roast.model.entity.User;
+
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTCreator;
 import com.auth0.jwt.algorithms.Algorithm;
+import common.annotation.TokenField;
+import common.model.vo.TokenPayload;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -22,16 +22,14 @@ public class AuthHelper {
 
     private final long tokenTTL;
 
-    public AuthHelper(@Value("${app.auth.secret}") String secret, @Value("${app.token.ttl}") String tokenTTL) {
+    public AuthHelper(@Value("${app.auth.secret}") String secret,
+                      @Value("${app.token.ttl}") String tokenTTL) {
         this.algorithm = Algorithm.HMAC256(secret);
         this.tokenTTL = Long.parseLong(tokenTTL);
     }
 
-    public String generateToken(User user) {
-        TokenPayload tokenPayload = new TokenPayload();
-        tokenPayload.setUserId(user.getId());
-        tokenPayload.setName(user.getName());
-        return generateToken(tokenPayload);
+    public String generateToken(long userId, String name) {
+        return generateToken(new TokenPayload(userId, name));
     }
 
     public String generateToken(TokenPayload tokenPayload) {

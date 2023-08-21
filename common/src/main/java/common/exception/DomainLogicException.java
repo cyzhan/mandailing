@@ -1,23 +1,23 @@
 package common.exception;
 
-import common.constant.Error;
+import common.constant.ApiError;
 import lombok.Getter;
 
 @Getter
 public class DomainLogicException extends RuntimeException{
 
-    private Error error;
+    private ApiError apiError;
 
     public DomainLogicException() {
     }
 
-    public DomainLogicException(Error error){
-        this.error = error;
+    public DomainLogicException(ApiError apiError){
+        this.apiError = apiError;
     }
 
-    public DomainLogicException(Error error, String msgPrintOnLog){
+    public DomainLogicException(ApiError apiError, String msgPrintOnLog){
         super(msgPrintOnLog);
-        this.error = error;
+        this.apiError = apiError;
     }
 
 }

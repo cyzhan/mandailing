@@ -7,7 +7,7 @@ import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import common.constant.Error;
+import common.constant.ApiError;
 import common.constant.RedisKey;
 import common.model.vo.ResponseVO;
 import common.model.vo.TokenPayload;
@@ -27,7 +27,9 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 
 @Log4j2
 @Component
@@ -37,8 +39,6 @@ public class AuthFilter implements GatewayFilter, Ordered {
     private final JWTVerifier verifier;
     private final ObjectMapper objectMapper;
     private final RedisHelper redisHelper;
-
-
 
     public AuthFilter(@Value("${app.auth.secret}") String secret,
                       @Autowired ObjectMapper objectMapper,
@@ -52,13 +52,14 @@ public class AuthFilter implements GatewayFilter, Ordered {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String token = exchange.getRequest().getHeaders().getFirst("Authorization");
-        log.info("token = {}", token);
+        ServerHttpResponse response = exchange.getResponse();
+        response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+//        log.info("token = {}", token);
+
         if (token == null || token.equals(EMPTY)){
             log.debug("Authorization is not provided");
-            ServerHttpResponse response = exchange.getResponse();
-            response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
             response.setStatusCode(HttpStatus.UNAUTHORIZED);
-            DataBuffer buffer = response.bufferFactory().wrap(toBytes(ResponseVO.error(Error.CODE_401)));
+            DataBuffer buffer = response.bufferFactory().wrap(toBytes(ResponseVO.error(ApiError.CODE_401)));
             return response.writeWith(Mono.just(buffer));
         }
 
@@ -69,22 +70,16 @@ public class AuthFilter implements GatewayFilter, Ordered {
             tokenPayload = readTokenPayload(decodedJWT);
         } catch (JWTVerificationException | JsonProcessingException e) {
             log.debug("JWT verified fail");
-            ServerHttpResponse response = exchange.getResponse();
-            response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-            DataBuffer buffer = response.bufferFactory().wrap(toBytes(ResponseVO.error(Error.CODE_401)));
+            DataBuffer buffer = response.bufferFactory().wrap(toBytes(ResponseVO.error(ApiError.CODE_401)));
             return response.writeWith(Mono.just(buffer));
         }
-
-        return redisHelper.getTemplate().opsForValue().get(RedisKey.loginUser(tokenPayload.getUserId()))
-                .switchIfEmpty(Mono.just(EMPTY))
-                .flatMap(redisValue -> {
-                    log.debug("redisValue = {}", redisValue);
-                    if (redisValue.equals(EMPTY) || !decodedJWT.getSignature().equals(redisValue)) {
-                        ServerHttpResponse response = exchange.getResponse();
-                        response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+        List<String> keys = List.of(RedisKey.loginUser(tokenPayload.getUserId()), RedisKey.loginUser(tokenPayload.getUserId()) + "_temp");
+        return redisHelper.getTemplate().opsForValue().multiGet(keys)
+                .flatMap(values -> {
+                    if (!values.contains(decodedJWT.getSignature())){
                         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                        DataBuffer buffer = response.bufferFactory().wrap(toBytes(ResponseVO.error(Error.CODE_401)));
+                        DataBuffer buffer = response.bufferFactory().wrap(toBytes(ResponseVO.error(ApiError.CODE_401)));
                         return response.writeWith(Mono.just(buffer));
                     }
                     return chain.filter(exchange);

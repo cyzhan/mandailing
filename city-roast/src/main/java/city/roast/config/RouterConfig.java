@@ -31,10 +31,17 @@ public class RouterConfig {
 
     @Bean
     @Order(1)
-    public RouterFunction<ServerResponse> getDemoRouter(DemoHandler handler, AuthFilter authFilter) {
+    public RouterFunction<ServerResponse> getDemoRouter(DemoHandler handler) {
         RouterFunction<ServerResponse> r = route(GET("/auth"), handler::verifyToken);
-        return route().nest(path(CONTEXT_PATH + "/demo"), () -> r).filter(authFilter).build();
+        return route().nest(path(CONTEXT_PATH + "/demo"), () -> r).build();
     }
+
+//    @Bean
+//    @Order(1)
+//    public RouterFunction<ServerResponse> getDemoRouter(DemoHandler handler, AuthFilter authFilter) {
+//        RouterFunction<ServerResponse> r = route(GET("/auth"), handler::verifyToken);
+//        return route().nest(path(CONTEXT_PATH + "/demo"), () -> r).filter(authFilter).build();
+//    }
 
     @Bean
     @Order(1)

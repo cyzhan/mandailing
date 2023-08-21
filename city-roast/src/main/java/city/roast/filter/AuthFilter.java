@@ -1,9 +1,6 @@
 package city.roast.filter;
 
-import common.constant.Error;
-import city.roast.model.TokenPayload;
-
-import city.roast.util.AuthHelper;
+import common.constant.ApiError;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
@@ -14,6 +11,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import common.constant.RedisKey;
 import common.model.vo.ResponseVO;
+import common.model.vo.TokenPayload;
+import common.util.AuthHelper;
 import common.util.RedisHelper;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -80,7 +79,7 @@ public class AuthFilter implements HandlerFilterFunction<ServerResponse, ServerR
         String token = serverRequest.headers().firstHeader("Authorization");
         if (null == token || EMPTY.equals(token)) {
             log.error("Authorization is not provided");
-            return ServerResponse.status(HttpStatus.UNAUTHORIZED).bodyValue(ResponseVO.error(Error.CODE_401));
+            return ServerResponse.status(HttpStatus.UNAUTHORIZED).bodyValue(ResponseVO.error(ApiError.CODE_401));
         }
 
         DecodedJWT decodedJWT;
@@ -89,7 +88,7 @@ public class AuthFilter implements HandlerFilterFunction<ServerResponse, ServerR
             decodedJWT = verifier.verify(token);
             tokenPayload = readTokenPayload(decodedJWT);
         } catch (JWTVerificationException | JsonProcessingException e) {
-            return ServerResponse.status(HttpStatus.UNAUTHORIZED).bodyValue(ResponseVO.error(Error.CODE_401));
+            return ServerResponse.status(HttpStatus.UNAUTHORIZED).bodyValue(ResponseVO.error(ApiError.CODE_401));
         }
 
         long now = Instant.now().getEpochSecond();
@@ -109,11 +108,11 @@ public class AuthFilter implements HandlerFilterFunction<ServerResponse, ServerR
                     })
                     .onErrorResume(Exception.class, e -> {
                         log.error(e.getMessage());
-                        return ServerResponse.status(HttpStatus.UNAUTHORIZED).bodyValue(ResponseVO.error(Error.CODE_401));
+                        return ServerResponse.status(HttpStatus.UNAUTHORIZED).bodyValue(ResponseVO.error(ApiError.CODE_401));
                     });
         }
 
-        String newToken = authHelper.generateToken(tokenPayload);
+        String newToken = authHelper.generateToken(tokenPayload.getUserId(), tokenPayload.getName());
         ByteBuffer byteBufferScript = ByteBuffer.wrap(SWAP_TOKEN_SCRIPT.getBytes());
         final ByteBuffer[] keysAndArgs = new ByteBuffer[4];
         keysAndArgs[0] = ByteBuffer.wrap(RedisKey.loginUser(userId).getBytes());
@@ -132,11 +131,11 @@ public class AuthFilter implements HandlerFilterFunction<ServerResponse, ServerR
                     } else if (result == 2) {
                         return handlerFunction.handle(serverRequest);
                     }
-                    return ServerResponse.status(HttpStatus.UNAUTHORIZED).bodyValue(ResponseVO.error(Error.CODE_401));
+                    return ServerResponse.status(HttpStatus.UNAUTHORIZED).bodyValue(ResponseVO.error(ApiError.CODE_401));
                 })
                 .onErrorResume(Exception.class, e -> {
                     log.error(e.getMessage());
-                    return ServerResponse.status(HttpStatus.UNAUTHORIZED).bodyValue(ResponseVO.error(Error.CODE_401));
+                    return ServerResponse.status(HttpStatus.UNAUTHORIZED).bodyValue(ResponseVO.error(ApiError.CODE_401));
                 });
     }
 

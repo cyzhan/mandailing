@@ -1,7 +1,7 @@
 package common.model.vo;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import common.constant.Error;
+import common.constant.ApiError;
 import lombok.Getter;
 
 @Getter
@@ -38,7 +38,7 @@ public class ResponseVO {
         return new ResponseVO(code, msg);
     }
 
-    public static ResponseVO error(Error error){
+    public static ResponseVO error(ApiError error){
         return new ResponseVO(error.getCode(), error.getMsg());
     }
 

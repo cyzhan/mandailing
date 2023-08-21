@@ -2,6 +2,7 @@ package burlap.bag.config;
 
 import burlap.bag.filter.AuthFilter;
 import burlap.bag.filter.ElapsedFilter;
+import burlap.bag.filter.SwapTokenFilter;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
@@ -13,16 +14,22 @@ import org.springframework.context.annotation.Configuration;
 public class GatewayConfig {
 
     @Bean
-    public RouteLocator gateWayConfigInfo(RouteLocatorBuilder routeLocatorBuilder, ElapsedFilter elapsedFilter, AuthFilter authFilter){
+    public RouteLocator gateWayConfigInfo(RouteLocatorBuilder routeLocatorBuilder,
+                                          ElapsedFilter elapsedFilter,
+                                          AuthFilter authFilter,
+                                          SwapTokenFilter swapTokenFilter){
         // 构建多个路由routes
         RouteLocatorBuilder.Builder routes = routeLocatorBuilder.routes();
 
         // 具体路由地址
-        routes.route("path_city_roast_login", r -> r.path("/city-roast/users/login", "/city-roast/system/**")
+        routes.route("city_roast_token_swap", r -> r.path("/city-roast/token-swap")
+                .filters(f -> f.filters(swapTokenFilter)).uri("http://localhost:8080/")).build();
+
+        routes.route("city_roast_auth_free", r -> r.path("/city-roast/users/login", "/city-roast/system/**")
                 .filters(f -> f.filters(elapsedFilter))
                 .uri("http://localhost:8080/")).build();
 
-        routes.route("path_city_roast",r -> r.path("/city-roast/**")
+        routes.route("city_roast_auth",r -> r.path("/city-roast/**")
                 .filters(f -> f.filters(authFilter, elapsedFilter))
 //                .filters(f -> f.stripPrefix(1).filter(elapsedFilter))
                 .uri("http://localhost:8080/city-roast/")).build();
