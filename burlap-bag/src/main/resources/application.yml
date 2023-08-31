@@ -1,5 +1,12 @@
 server:
   port: 8096  #端口号
+
 #spring:
-#  application:
-#    name: microServiceCloudGateway
+#  cloud:
+#    gateway:
+#      routes:
+#        - id: city_roast_token_swap
+#          uri: http://localhost:8080
+#          predicates:
+#            - Path=/city-roast/token-swap
+#            - Method=GET

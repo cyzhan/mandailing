@@ -5,7 +5,6 @@
     <modelVersion>4.0.0</modelVersion>
     <modules>
         <module>city-roast</module>
-        <module>raw-bean</module>
         <module>burlap-bag</module>
         <module>common</module>
     </modules>

@@ -78,11 +78,11 @@ public class SwapTokenFilter implements GatewayFilter, Ordered {
         response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
 //        log.info("token = {}", token);
 
-        if (exchange.getRequest().getMethod().compareTo(HttpMethod.GET) != 0){
-            response.setStatusCode(HttpStatus.METHOD_NOT_ALLOWED);
-            DataBuffer buffer = response.bufferFactory().wrap(toBytes(ResponseVO.error(ApiError.CODE_404)));
-            return response.writeWith(Mono.just(buffer));
-        }
+//        if (exchange.getRequest().getMethod().compareTo(HttpMethod.GET) != 0){
+//            response.setStatusCode(HttpStatus.METHOD_NOT_ALLOWED);
+//            DataBuffer buffer = response.bufferFactory().wrap(toBytes(ResponseVO.error(ApiError.CODE_404)));
+//            return response.writeWith(Mono.just(buffer));
+//        }
 
         if (token == null || token.equals(EMPTY)){
             log.debug("Authorization is not provided");
