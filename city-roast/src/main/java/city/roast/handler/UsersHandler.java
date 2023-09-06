@@ -2,10 +2,11 @@ package city.roast.handler;
 
 import city.roast.model.vo.*;
 import common.constant.ApiError;
-
 import city.roast.model.entity.User;
 import city.roast.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import common.constant.ContextKey;
+import common.constant.RDBMS;
 import common.constant.RedisKey;
 import common.exception.DomainLogicException;
 import common.model.vo.ListWrapper;
@@ -24,10 +25,10 @@ import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuples;
-
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.*;
+
 
 @Service
 @Log4j2
@@ -75,7 +76,9 @@ public class UsersHandler {
         return request.bodyToMono(LoginVO.class)
                 .doOnNext(validateHelper::validate)
                 .flatMap(loginVO -> Mono.just(loginVO).zipWith(
-                        userRepository.findByName(loginVO.getName()).switchIfEmpty(Mono.error(new DomainLogicException(ApiError.CODE_1001))),
+                        userRepository.findByName(loginVO.getName())
+                                .switchIfEmpty(Mono.error(new DomainLogicException(ApiError.CODE_1001)))
+                                .contextWrite(context -> context.put(RDBMS.PRIMARY, RDBMS.PRIMARY)),
                         Tuples::of)
                 )
                 .map(tuples -> {
@@ -147,7 +150,9 @@ public class UsersHandler {
             ges2 = ges2.bind(i, args.get(i));
         }
 
-        Mono<Long> longMono = ges2.map((row, rowMetaData) -> row.get("count", Long.class)).one();
+        Mono<Long> longMono = ges2.map((row, rowMetaData) -> row.get("count", Long.class))
+                .one()
+                .contextWrite(context -> context.put(ContextKey.DATA_SOURCE, RDBMS.REPLICA));
 
         return ges.map((row, rowMetadata) -> User.builder()
                         .id(row.get("id", Long.class))
@@ -158,9 +163,8 @@ public class UsersHandler {
                         .build())
                 .all()
                 .collectList()
-                .zipWith(longMono, (users, count) -> {
-                    return ResponseVO.of(ListWrapper.of(count, users));
-                })
+                .contextWrite(context -> context.put(ContextKey.DATA_SOURCE, RDBMS.REPLICA))
+                .zipWith(longMono, (users, count) -> ResponseVO.of(ListWrapper.of(count, users)))
                 .flatMap(data -> ServerResponse.ok().bodyValue(data));
     }
 
@@ -235,6 +239,7 @@ public class UsersHandler {
                             .then()
                             .thenReturn(list);
 
+
                 })
                 .flatMap(list -> {
                     log.info("list.get(0) completed");
@@ -253,10 +258,9 @@ public class UsersHandler {
                             .thenReturn(ResponseVO.ok());
                 })
                 .flatMap(data -> ServerResponse.ok().bodyValue(data))
-//                .as(operator::transactional)
-                .onErrorResume(Exception.class, e -> {
-                    return ServerResponse.status(500).bodyValue(ResponseVO.error(500, e.getMessage()));
-                });
+                .as(operator::transactional)
+                .contextWrite(context -> context.put(ContextKey.DATA_SOURCE, RDBMS.PRIMARY))
+                .onErrorResume(exceptionHandler::handle);
     }
 
     public Mono<ServerResponse> patchBalance(ServerRequest request){
