@@ -22,16 +22,4 @@ public class CoffeeConnectionFactory extends AbstractRoutingConnectionFactory {
         }));
     }
 
-//    @Override
-//    protected Mono<Object> determineCurrentLookupKey() {
-//        return Mono.deferContextual(Mono::just).handle(((contextView, objectSynchronousSink) -> {
-//
-//            if (contextView.hasKey(RDBMS.PRIMARY)){
-//                objectSynchronousSink.next(contextView.get(RDBMS.PRIMARY));
-//            }else{
-//                objectSynchronousSink.next(RDBMS.PRIMARY);
-//            }
-//        }));
-//    }
-
 }

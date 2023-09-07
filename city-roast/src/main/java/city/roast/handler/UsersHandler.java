@@ -11,7 +11,7 @@ import common.constant.RedisKey;
 import common.exception.DomainLogicException;
 import common.model.vo.ListWrapper;
 import common.model.vo.PageVO;
-import common.model.vo.ResponseVO;
+import common.model.vo.ObjectWrapper;
 import common.util.*;
 import common.util.AuthHelper;
 import lombok.extern.log4j.Log4j2;
@@ -67,8 +67,8 @@ public class UsersHandler {
     public Mono<ServerResponse> findByID(ServerRequest request){
         return Mono.just(request)
                 .flatMap(req -> userRepository.findById(Long.parseLong(req.pathVariables().get("id"))))
-                .switchIfEmpty(Mono.error(new DomainLogicException(ApiError.CODE_404)))
-                .flatMap(userEntity -> ServerResponse.ok().bodyValue(ResponseVO.of(userEntity)))
+                .switchIfEmpty(Mono.error(DomainLogicException.of(ApiError.CODE_404)))
+                .flatMap(userEntity -> ServerResponse.ok().bodyValue(ObjectWrapper.of(userEntity)))
                 .onErrorResume(exceptionHandler::handle);
     }
 
@@ -77,8 +77,8 @@ public class UsersHandler {
                 .doOnNext(validateHelper::validate)
                 .flatMap(loginVO -> Mono.just(loginVO).zipWith(
                         userRepository.findByName(loginVO.getName())
-                                .switchIfEmpty(Mono.error(new DomainLogicException(ApiError.CODE_1001)))
-                                .contextWrite(context -> context.put(RDBMS.PRIMARY, RDBMS.PRIMARY)),
+                                .switchIfEmpty(Mono.error(DomainLogicException.of(ApiError.CODE_1001)))
+                                .contextWrite(context -> context.put(ContextKey.DATA_SOURCE, RDBMS.REPLICA)),
                         Tuples::of)
                 )
                 .map(tuples -> {
@@ -89,7 +89,7 @@ public class UsersHandler {
                         String token = authHelper.generateToken(user.getId(), user.getName());
                         return Tuples.of(RedisKey.loginUser(user.getId()), token);
                     }
-                    throw new DomainLogicException(ApiError.CODE_1002);
+                    throw DomainLogicException.of(ApiError.CODE_1002);
                 })
                 .flatMap(tuple2 -> {
                     String token = tuple2.getT2();
@@ -100,13 +100,13 @@ public class UsersHandler {
                 })
                 .flatMap(tuple2 -> {
                     if (!tuple2.getT1()) {
-                        return Mono.error(new DomainLogicException(ApiError.CODE_1002, "redis set loginUser fail"));
+                        return Mono.error(DomainLogicException.of(ApiError.CODE_1002, "redis set loginUser fail"));
                     }
                     Map<String, Object> map = new HashMap<>();
                     map.put("token", tuple2.getT2());
-                    return ServerResponse.ok().bodyValue(ResponseVO.of(map));
+                    return ServerResponse.ok().bodyValue(ObjectWrapper.of(map));
                 })
-                .onErrorResume(Exception.class, exceptionHandler::handle);
+                .onErrorResume(exceptionHandler::handle);
     }
 
     public Mono<ServerResponse> list(ServerRequest request){
@@ -164,7 +164,7 @@ public class UsersHandler {
                 .all()
                 .collectList()
                 .contextWrite(context -> context.put(ContextKey.DATA_SOURCE, RDBMS.REPLICA))
-                .zipWith(longMono, (users, count) -> ResponseVO.of(ListWrapper.of(count, users)))
+                .zipWith(longMono, (users, count) -> ObjectWrapper.of(ListWrapper.of(count, users)))
                 .flatMap(data -> ServerResponse.ok().bodyValue(data));
     }
 
@@ -184,10 +184,11 @@ public class UsersHandler {
                             .bind(2, user.getEmail())
                             .bind(3, 0)
                             .fetch().rowsUpdated();
-                }).flatMap(result -> {
-                    log.info("rowsUpdated = {}", result);
-                    return ServerResponse.ok().bodyValue(ResponseVO.ok());
-                }).onErrorResume(e -> ServerResponse.ok().bodyValue(ResponseVO.error(500, e.getMessage())));
+                })
+                .contextWrite(context -> context.put(ContextKey.DATA_SOURCE, RDBMS.PRIMARY))
+                .doOnNext(rowsUpdated -> log.info("rowsUpdated = {}", rowsUpdated))
+                .flatMap(result -> ServerResponse.ok().bodyValue(ObjectWrapper.ok()))
+                .onErrorResume(exceptionHandler::handle);
     }
 
     public Mono<ServerResponse> batch(ServerRequest request){
@@ -215,7 +216,7 @@ public class UsersHandler {
                 })
                 .map(updatedRow -> {
                     log.info("updatedRow = {}", updatedRow);
-                    return ResponseVO.ok();
+                    return ObjectWrapper.ok();
                 })
                 .flatMap(data -> ServerResponse.ok().bodyValue(data));
     }
@@ -255,7 +256,7 @@ public class UsersHandler {
 //                            .bind(3, 0)
                             //command out above code to deliberately invoke exception
                             .then()
-                            .thenReturn(ResponseVO.ok());
+                            .thenReturn(ObjectWrapper.ok());
                 })
                 .flatMap(data -> ServerResponse.ok().bodyValue(data))
                 .as(operator::transactional)
@@ -272,7 +273,7 @@ public class UsersHandler {
                 })
                 .doOnNext(tuple2 -> {
                     if (!tuple2.getT1().getObtained()){
-                        throw new DomainLogicException(ApiError.CODE_4001);
+                        throw DomainLogicException.of(ApiError.CODE_4001);
                     }
                 })
                 .flatMap(tuple2 -> {
@@ -287,6 +288,7 @@ public class UsersHandler {
                             .rowsUpdated()
                             .zipWith(Mono.just(tuple2.getT1()), Tuples::of);
                 })
+                .contextWrite(context -> context.put(ContextKey.DATA_SOURCE, RDBMS.PRIMARY))
                 .flatMap(tuple2 -> {
                     String key = tuple2.getT2().getKey();
                     String valueForRls = tuple2.getT2().getValueForRls();
@@ -296,9 +298,9 @@ public class UsersHandler {
                     if (rlsLockResult != 1){
                         log.info("rls redis fail");
                     }
-                    return ServerResponse.ok().bodyValue(ResponseVO.ok());
+                    return ServerResponse.ok().bodyValue(ObjectWrapper.ok());
                 })
-                .onErrorResume(throwable -> exceptionHandler.handle(throwable));
+                .onErrorResume(exceptionHandler::handle);
     }
 
 }

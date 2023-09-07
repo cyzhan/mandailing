@@ -38,8 +38,6 @@ public class AppConfig {
 
     @Bean
     public CoffeeConnectionFactory getCoffeeConnectionFactory(Environment env){
-        CoffeeConnectionFactory coffeeConnectionFactory = new CoffeeConnectionFactory();
-        Map<String, ConnectionFactory> factoryMap = new HashMap<>();
 
         int connectionTimeoutSeconds = Integer.parseInt(Objects.requireNonNull(env.getProperty("rdbms.connection.timeout.seconds")));
         int primaryPoolInitialSize = Integer.parseInt(Objects.requireNonNull(env.getProperty("primary.rdbms.pool.initial.size")));
@@ -99,8 +97,10 @@ public class AppConfig {
                 .validationQuery(Objects.requireNonNull(env.getProperty("rdbms.pool.validation.query")))
                 .build();
 
+        Map<String, ConnectionFactory> factoryMap = new HashMap<>();
         factoryMap.put(RDBMS.PRIMARY, new ConnectionPool(primaryConnectionPoolConfiguration));
         factoryMap.put(RDBMS.REPLICA, new ConnectionPool(replicaConnectionPoolConfiguration));
+        CoffeeConnectionFactory coffeeConnectionFactory = new CoffeeConnectionFactory();
         coffeeConnectionFactory.setTargetConnectionFactories(factoryMap);
         coffeeConnectionFactory.setDefaultTargetConnectionFactory(primaryConnectionFactory);
         return coffeeConnectionFactory;

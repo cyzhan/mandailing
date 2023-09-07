@@ -9,7 +9,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import common.constant.ApiError;
 import common.constant.RedisKey;
-import common.model.vo.ResponseVO;
+import common.model.vo.ObjectWrapper;
 import common.model.vo.TokenPayload;
 import common.util.RedisHelper;
 import lombok.extern.log4j.Log4j2;
@@ -27,7 +27,6 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 
@@ -59,7 +58,7 @@ public class AuthFilter implements GatewayFilter, Ordered {
         if (token == null || token.equals(EMPTY)){
             log.debug("Authorization is not provided");
             response.setStatusCode(HttpStatus.UNAUTHORIZED);
-            DataBuffer buffer = response.bufferFactory().wrap(toBytes(ResponseVO.error(ApiError.CODE_401)));
+            DataBuffer buffer = response.bufferFactory().wrap(toBytes(ObjectWrapper.error(ApiError.CODE_401)));
             return response.writeWith(Mono.just(buffer));
         }
 
@@ -71,7 +70,7 @@ public class AuthFilter implements GatewayFilter, Ordered {
         } catch (JWTVerificationException | JsonProcessingException e) {
             log.debug("JWT verified fail");
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-            DataBuffer buffer = response.bufferFactory().wrap(toBytes(ResponseVO.error(ApiError.CODE_401)));
+            DataBuffer buffer = response.bufferFactory().wrap(toBytes(ObjectWrapper.error(ApiError.CODE_401)));
             return response.writeWith(Mono.just(buffer));
         }
         List<String> keys = List.of(RedisKey.loginUser(tokenPayload.getUserId()), RedisKey.loginUser(tokenPayload.getUserId()) + "_temp");
@@ -79,7 +78,7 @@ public class AuthFilter implements GatewayFilter, Ordered {
                 .flatMap(values -> {
                     if (!values.contains(decodedJWT.getSignature())){
                         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                        DataBuffer buffer = response.bufferFactory().wrap(toBytes(ResponseVO.error(ApiError.CODE_401)));
+                        DataBuffer buffer = response.bufferFactory().wrap(toBytes(ObjectWrapper.error(ApiError.CODE_401)));
                         return response.writeWith(Mono.just(buffer));
                     }
                     return chain.filter(exchange);
@@ -97,9 +96,9 @@ public class AuthFilter implements GatewayFilter, Ordered {
         return objectMapper.readValue(payloadJson, TokenPayload.class);
     }
 
-    private byte[] toBytes(ResponseVO responseVO) {
+    private byte[] toBytes(ObjectWrapper objectWrapper) {
         try {
-            return objectMapper.writeValueAsString(responseVO).getBytes(StandardCharsets.UTF_8);
+            return objectMapper.writeValueAsString(objectWrapper).getBytes(StandardCharsets.UTF_8);
         } catch (JsonProcessingException e) {
             return "{\"code\":500,\"msg\":\"internal server error, %s\"}".formatted(e.getMessage()).getBytes(StandardCharsets.UTF_8);
         }

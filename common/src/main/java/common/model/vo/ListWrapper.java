@@ -30,8 +30,8 @@ public class ListWrapper<T> {
         return new ListWrapper<>(count, items);
     }
 
-    public static ListWrapper<Object> empty(Long count){
-        return new ListWrapper<>(count, emptyList);
+    public static ListWrapper<Object> empty(){
+        return new ListWrapper<>(0L, emptyList);
     }
 
 }

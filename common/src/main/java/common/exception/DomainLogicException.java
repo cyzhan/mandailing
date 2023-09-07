@@ -11,11 +11,19 @@ public class DomainLogicException extends RuntimeException{
     public DomainLogicException() {
     }
 
-    public DomainLogicException(ApiError apiError){
+    public static DomainLogicException of(ApiError apiError){
+        return new DomainLogicException(apiError);
+    }
+
+    public static DomainLogicException of(ApiError apiError, String logMsg){
+        return new DomainLogicException(apiError, logMsg);
+    }
+
+    private DomainLogicException(ApiError apiError){
         this.apiError = apiError;
     }
 
-    public DomainLogicException(ApiError apiError, String msgPrintOnLog){
+    private DomainLogicException(ApiError apiError, String msgPrintOnLog){
         super(msgPrintOnLog);
         this.apiError = apiError;
     }

@@ -9,7 +9,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import common.constant.ApiError;
 import common.constant.RedisKey;
-import common.model.vo.ResponseVO;
+import common.model.vo.ObjectWrapper;
 import common.model.vo.TokenPayload;
 import common.util.AuthHelper;
 import common.util.RedisHelper;
@@ -22,7 +22,6 @@ import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.data.redis.connection.ReturnType;
 import org.springframework.data.redis.core.ReactiveRedisCallback;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpResponse;
@@ -87,7 +86,7 @@ public class SwapTokenFilter implements GatewayFilter, Ordered {
         if (token == null || token.equals(EMPTY)){
             log.debug("Authorization is not provided");
             response.setStatusCode(HttpStatus.UNAUTHORIZED);
-            DataBuffer buffer = response.bufferFactory().wrap(toBytes(ResponseVO.error(ApiError.CODE_401)));
+            DataBuffer buffer = response.bufferFactory().wrap(toBytes(ObjectWrapper.error(ApiError.CODE_401)));
             return response.writeWith(Mono.just(buffer));
         }
 
@@ -99,7 +98,7 @@ public class SwapTokenFilter implements GatewayFilter, Ordered {
         } catch (JWTVerificationException | JsonProcessingException e) {
             log.debug("JWT verified fail");
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-            DataBuffer buffer = response.bufferFactory().wrap(toBytes(ResponseVO.error(ApiError.CODE_401)));
+            DataBuffer buffer = response.bufferFactory().wrap(toBytes(ObjectWrapper.error(ApiError.CODE_401)));
             return response.writeWith(Mono.just(buffer));
         }
 
@@ -110,7 +109,7 @@ public class SwapTokenFilter implements GatewayFilter, Ordered {
         if (expAt - now > renew) {
             //no need swap
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-            DataBuffer buffer = response.bufferFactory().wrap(toBytes(ResponseVO.error(ApiError.CODE_1000)));
+            DataBuffer buffer = response.bufferFactory().wrap(toBytes(ObjectWrapper.error(ApiError.CODE_1000)));
             return response.writeWith(Mono.just(buffer));
         }
 
@@ -135,7 +134,7 @@ public class SwapTokenFilter implements GatewayFilter, Ordered {
                     } else{
                         exchange.getResponse().setStatusCode(HttpStatus.BAD_REQUEST);
 
-                        DataBuffer buffer = response.bufferFactory().wrap(toBytes(ResponseVO.error(ApiError.CODE_1001)));
+                        DataBuffer buffer = response.bufferFactory().wrap(toBytes(ObjectWrapper.error(ApiError.CODE_1001)));
                         return response.writeWith(Mono.just(buffer));
                     }
                 });
@@ -152,9 +151,9 @@ public class SwapTokenFilter implements GatewayFilter, Ordered {
         return objectMapper.readValue(payloadJson, TokenPayload.class);
     }
 
-    private byte[] toBytes(ResponseVO responseVO) {
+    private byte[] toBytes(ObjectWrapper objectWrapper) {
         try {
-            return objectMapper.writeValueAsString(responseVO).getBytes(StandardCharsets.UTF_8);
+            return objectMapper.writeValueAsString(objectWrapper).getBytes(StandardCharsets.UTF_8);
         } catch (JsonProcessingException e) {
             return "{\"code\":500,\"msg\":\"internal server error, %s\"}".formatted(e.getMessage()).getBytes(StandardCharsets.UTF_8);
         }
